@@ -1,4 +1,7 @@
+using HotelListing.Configurations;
 using HotelListing.Data;
+using HotelListing.Data.Interfaces;
+using HotelListing.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -15,6 +18,8 @@ Log.Logger = logger;
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
+builder.Services.AddAutoMapper(typeof(MapperInitializer));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -30,29 +35,27 @@ cp.AllowAnyOrigin()
 .AllowAnyMethod()
 .AllowAnyHeader()));
 
-
-
 try
 {
     Log.Information("My Application is starting");
     var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
-app.UseCors("hotelPolicy");
+    app.UseCors("hotelPolicy");
 
-app.UseHttpsRedirection();
+    app.UseHttpsRedirection();
 
-app.UseAuthorization();
+    app.UseAuthorization();
 
-app.MapControllers();
+    app.MapControllers();
 
-app.Run();
+    app.Run();
 }
 catch (Exception ex)
 {

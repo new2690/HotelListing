@@ -18,10 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Data\Interfaces\" />
-    <Folder Include="Data\Services\" />
     <Folder Include="Migrations\" />
-    <Folder Include="Configurations\" />
   </ItemGroup>
 
 </Project>
