@@ -24,7 +24,7 @@ namespace HotelListing.Data.Services
             await _db.AddRangeAsync(entities);
         }
 
-        public async Task<IEnumerable<T>> GetAllAsync(System.Linq.Expressions.Expression<Func<T, bool>> expression = null, 
+        public async Task<IEnumerable<T>> GetAllAsync(System.Linq.Expressions.Expression<Func<T, bool>> expression = null,
             Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null, List<string> includes = null)
         {
             var query = _db.AsQueryable();
@@ -32,27 +32,29 @@ namespace HotelListing.Data.Services
             if (expression != null)
                 query = query.Where(expression);
 
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
+            if (includes != null)
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
 
             if (orderBy != null)
                 query = orderBy(query);
 
-            return await query.ToListAsync();
+            return await query.AsNoTracking().ToListAsync();
         }
 
         public async Task<T> GetAsync(System.Linq.Expressions.Expression<Func<T, bool>> expression = null, List<string> includes = null)
         {
             var query = _db.AsQueryable();
 
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
+            if (includes != null)
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
 
-            return await query.FirstOrDefaultAsync(expression);
+            return await query.AsNoTracking().FirstOrDefaultAsync(expression);
         }
 
         public void Remove(T entity)
@@ -62,7 +64,7 @@ namespace HotelListing.Data.Services
 
         public async Task Remove(int id)
         {
-            var entity =await _db.FindAsync(id);
+            var entity = await _db.FindAsync(id);
             if (entity != null)
                 Remove(entity);
         }
