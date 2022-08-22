@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using HotelListing.Data.Interfaces;
 using HotelListing.Models.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,6 +25,7 @@ namespace HotelListing.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [Authorize(Policy = "ReqiredAdmin")]
         public async Task<IActionResult> GetAllCountry()
         {
             try
@@ -42,6 +44,7 @@ namespace HotelListing.Controllers
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [Authorize(Policy = "ReqiredUser")]
         public async Task<IActionResult> GetCountry(int id)
         {
             try
