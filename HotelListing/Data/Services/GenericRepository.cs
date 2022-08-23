@@ -14,12 +14,12 @@ namespace HotelListing.Data.Services
             _db = _context.Set<T>();
         }
 
-        public async Task Add(T entity)
+        public async Task AddAsync(T entity)
         {
             await _db.AddAsync(entity);
         }
 
-        public async Task AddRange(IEnumerable<T> entities)
+        public async Task AddRangeAsync(IEnumerable<T> entities)
         {
             await _db.AddRangeAsync(entities);
         }
@@ -62,7 +62,7 @@ namespace HotelListing.Data.Services
             _db.Remove(entity);
         }
 
-        public async Task Remove(int id)
+        public async Task RemoveAsync(int id)
         {
             var entity = await _db.FindAsync(id);
             if (entity != null)

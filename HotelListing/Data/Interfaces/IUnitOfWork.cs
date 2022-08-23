@@ -6,6 +6,6 @@ namespace HotelListing.Data.Interfaces
     {
         public IGenericRepository<Hotel> Hotels { get; }
         public IGenericRepository<Country> Countries { get; }
-        Task Save();
+        Task SaveAsync();
     }
 }

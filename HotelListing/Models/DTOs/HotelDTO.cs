@@ -13,7 +13,7 @@ namespace HotelListing.Models.DTOs
         public string Address { get; set; }
 
         [Required]
-        [Range(1,5,ErrorMessage ="The range {0} is between {1} and {2}")]
+        [Range(1.0,5.0,ErrorMessage ="The range {0} is between {1} and {2}")]
         public string Rating { get; set; }
 
         [Required]
@@ -23,5 +23,10 @@ namespace HotelListing.Models.DTOs
     {
         public int Id { get; set; }
         public CountryDTO Country { get; set; }
+    }
+
+    public class UpdateHotelDto : CreateHotelDTO
+    {
+
     }
 }

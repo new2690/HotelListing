@@ -18,4 +18,6 @@ namespace HotelListing.Models.DTOs
 
         public IEnumerable<HotelDTO> Hotels { get; set; }
     }
+
+    public class UpdateCountryDto : CreateCountryDTO { }
 }
