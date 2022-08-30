@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
+using FluentValidation;
 using HotelListing.Data.Interfaces;
+using HotelListing.Extensions;
 using HotelListing.Models;
 using HotelListing.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -8,57 +10,55 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HotelListing.Controllers
 {
-    [Route("api/[controller]")]
+    [ApiVersion("2.0")]
+    [Route("api/{v:apiversion}/[controller]")]
     [ApiController]
     public class CountryController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<CountryController> _logger;
+        private readonly IValidator<CreateCountryDTO> _validator;
         private readonly IMapper _mapper;
+        //public delegate void myFunc(int id);
 
-        public CountryController(IUnitOfWork unitOfWork,ILogger<CountryController> logger,IMapper mapper)
+        public CountryController(IUnitOfWork unitOfWork,ILogger<CountryController> logger,IValidator<CreateCountryDTO> validator,IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _validator = validator;
             _mapper = mapper;
         }
 
         [HttpGet]
+        [ResponseCache(CacheProfileName = "60Cache")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Authorize(Policy = "ReqiredAdmin")]
-        public async Task<IActionResult> GetAllCountry()
+        public async Task<IActionResult> GetAllCountry([FromQuery] RequestPagingParams requestParams)
         {
-            try
-            {
-                var countries = await _unitOfWork.Countries.GetAllAsync(includes:new List<string>() { "Hotels" });
+                var countries = await _unitOfWork.Countries.GetAllWithPagingAsync(
+                    includes: new List<string>() { "Hotels" }, request: requestParams);
+
                 var result = _mapper.Map<IEnumerable<CountryDTO>>(countries);
+
                 return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,$"An error accure during call {nameof(GetAllCountry)} method");
-                return StatusCode(500, "Internal Server Error. Plase Try Later");
-            }
         }
 
+
         [HttpGet("{id}",Name = "GetCountry")]
+        [ResponseCache(CacheProfileName = "60Cache")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Authorize(Policy = "ReqiredUser")]
         public async Task<IActionResult> GetCountry(int id)
         {
-            try
-            {
-                var country =await _unitOfWork.Countries.GetAsync(c => c.Id == id,includes:new List<string> { "Hotels"});
+                var country =await _unitOfWork.Countries.GetAsync(c => c.Id == id,
+                    includes:new List<string> { "Hotels"});
+
                 var result=_mapper.Map<CountryDTO>(country);
+
                 return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"An error accure during call {nameof(GetCountry)} method");
-                return StatusCode(500, "Internal Server Error. Please Try Later");
-            }
+            
         }
 
 
@@ -71,15 +71,16 @@ namespace HotelListing.Controllers
         {
             _logger.LogInformation("Try to create new country");
 
-            if (!ModelState.IsValid)
+            var validationResult = await _validator.ValidateAsync(countryDTO);
+
+            if (!validationResult.IsValid)
             {
+                validationResult.AddToModelState(ModelState);
+
                 _logger.LogError($"Try to create new country was fail. method used was {nameof(CreateCountry)}");
-            
-                return BadRequest(ModelState);
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
             }
 
-            try
-            {
                 var country = _mapper.Map<Country>(countryDTO);
 
                 await _unitOfWork.Countries.AddAsync(country);
@@ -87,14 +88,8 @@ namespace HotelListing.Controllers
                 await _unitOfWork.SaveAsync();
 
                 return CreatedAtRoute("GetCountry", new { id = country.Id }, country);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"An error accure during call {nameof(CreateCountry)} method");
-
-                return StatusCode(500, "Internal Server Error. Please Try Later");
-            }
         }
+
 
         [Authorize(Policy = "ReqiredUser")]
         [HttpPut("{id}")]
@@ -105,14 +100,16 @@ namespace HotelListing.Controllers
         {
             _logger.LogInformation("Try to update country");
 
-            if (!ModelState.IsValid || id < 1)
+            var validationResult = await _validator.ValidateAsync(countryDto);
+
+            if (!validationResult.IsValid || id<1)
             {
+                validationResult.AddToModelState(ModelState);
+
                 _logger.LogError($"Invalid attempt in {nameof(UpdateCountry)} method.");
-                return BadRequest(ModelState);
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
             }
 
-            try
-            {
                 var country = await _unitOfWork.Countries.GetAsync(h => h.Id == id);
 
                 if (country == null)
@@ -127,13 +124,9 @@ namespace HotelListing.Controllers
                 await _unitOfWork.SaveAsync();
 
                 return Accepted($"Update country with id={id}  was successfuly");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"An error accure during call {nameof(UpdateCountry)} method");
-                return Problem($"Something went wrong in the {nameof(UpdateCountry)}", statusCode: 500);
-            }
+            
         }
+
 
         [Authorize(Policy = "ReqiredUser")]
         [HttpDelete("{id}")]
@@ -151,8 +144,6 @@ namespace HotelListing.Controllers
                 return BadRequest("id is not valid");
             }
 
-            try
-            {
                 var country = await _unitOfWork.Countries.GetAsync(h => h.Id == id);
 
                 if (country == null)
@@ -167,12 +158,12 @@ namespace HotelListing.Controllers
                 await _unitOfWork.SaveAsync();
 
                 return Ok($"Country with id: {id} was delete successfuly");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"An error accure during call {nameof(DeleteCountry)} method");
-                return Problem($"Something went wrong in the {nameof(DeleteCountry)}", statusCode: 500);
-            }
+            
+            //catch (Exception ex)
+            //{
+            //    _logger.LogError(ex, $"An error accure during call {nameof(DeleteCountry)} method");
+            //    return Problem($"Something went wrong in the {nameof(DeleteCountry)}", statusCode: 500);
+            //}
 
         }
     }

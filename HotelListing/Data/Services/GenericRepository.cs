@@ -1,5 +1,8 @@
 ﻿using HotelListing.Data.Interfaces;
+using HotelListing.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+using X.PagedList;
 
 namespace HotelListing.Data.Services
 {
@@ -24,14 +27,15 @@ namespace HotelListing.Data.Services
             await _db.AddRangeAsync(entities);
         }
 
-        public async Task<IEnumerable<T>> GetAllAsync(System.Linq.Expressions.Expression<Func<T, bool>> expression = null,
-            Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null, List<string> includes = null)
+        public async Task<IPagedList<T>> GetAllWithPagingAsync(Expression<Func<T, bool>> expression = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null, List<string> includes = null,
+            RequestPagingParams requestParams=null)
         {
             var query = _db.AsQueryable();
 
             if (expression != null)
                 query = query.Where(expression);
-
+            
             if (includes != null)
                 foreach (var include in includes)
                 {
@@ -41,10 +45,13 @@ namespace HotelListing.Data.Services
             if (orderBy != null)
                 query = orderBy(query);
 
-            return await query.AsNoTracking().ToListAsync();
+            return await query.AsNoTracking()
+                .ToPagedListAsync(requestParams.PageNumber, requestParams.PageSize);
+
         }
 
-        public async Task<T> GetAsync(System.Linq.Expressions.Expression<Func<T, bool>> expression = null, List<string> includes = null)
+
+        public async Task<T> GetAsync(Expression<Func<T, bool>> expression = null, List<string> includes = null)
         {
             var query = _db.AsQueryable();
 

@@ -1,3 +1,4 @@
+using AspNetCoreRateLimit;
 using HotelListing.Data;
 using HotelListing.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -18,14 +19,24 @@ Log.Logger = logger;
 
 // Add services to the container.
 
+builder.Services.ConfigureRateLimit(builder.Configuration);
+
+//builder.Services.AddHttpContextAccessor();
+
 builder.Services.Configurations();
 
 builder.Services.ConfigureJwt(builder.Configuration);
+
+builder.Services.ConfigureApiVersioning();
+
+
 
 builder.Services.AddDbContext<DatabaseContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("hotelConnection"));
 });
+
+builder.Services.AddResponseCaching();
 
 try
 {
@@ -39,10 +50,17 @@ try
         app.UseSwaggerUI();
     }
 
+
     app.UseCors("hotelPolicy");
+    
+    app.UseResponseCaching();
+
+    app.UseIpRateLimiting();
+
+    app.ConfigureExceptionHandler();
 
     app.UseHttpsRedirection();
-
+    
     app.UseAuthentication();
     
     app.UseAuthorization();

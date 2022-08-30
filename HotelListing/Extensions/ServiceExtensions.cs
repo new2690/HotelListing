@@ -1,11 +1,18 @@
-﻿using HotelListing.Configurations;
+﻿using AspNetCoreRateLimit;
+using FluentValidation;
+using HotelListing.Configurations;
 using HotelListing.Data;
 using HotelListing.Data.Interfaces;
 using HotelListing.Data.Services;
 using HotelListing.Models;
+using HotelListing.Models.DTOs;
+using HotelListing.Validations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using System.Text;
 
 namespace HotelListing.Extensions
@@ -15,10 +22,24 @@ namespace HotelListing.Extensions
         public static void Configurations(this IServiceCollection services)
         {
             services.AddControllers();
+
             services.AddTransient<IUnitOfWork, UnitOfWork>();
+
             services.AddTransient<ITokenService, TokenService>();
+
+            services.AddScoped<IValidator<CreateHotelDTO>, HotelValidator>();
+
+            services.AddScoped<IValidator<CreateCountryDTO>, CountryValidator>();
+
             services.AddAutoMapper(typeof(MapperInitializer));
-            services.AddControllersWithViews()
+
+            services.AddControllersWithViews(options =>
+            {
+                options.CacheProfiles.Add("60Cache", new CacheProfile
+                {
+                    Duration=60
+                });
+            })
                 .AddNewtonsoftJson(options =>
                     options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
                 );
@@ -45,7 +66,7 @@ namespace HotelListing.Extensions
             services.AddAuthorization(opt =>
             {
                 opt.AddPolicy("ReqiredAdmin", pol => pol.RequireRole("Administrator"));
-                opt.AddPolicy("ReqiredUser", pol => pol.RequireRole("Administrator","User"));
+                opt.AddPolicy("ReqiredUser", pol => pol.RequireRole("Administrator", "User"));
             });
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -60,7 +81,8 @@ namespace HotelListing.Extensions
             .AllowAnyHeader()));
         }
 
-        public static void ConfigureJwt(this IServiceCollection services,IConfiguration configuration)
+
+        public static void ConfigureJwt(this IServiceCollection services, IConfiguration configuration)
         {
             var jwtSettings = configuration.GetSection("Jwt");
 
@@ -73,9 +95,9 @@ namespace HotelListing.Extensions
                 new Microsoft.IdentityModel.Tokens.TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    
+
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
-                    
+
                     // ValidateIssuer is for API server
                     ValidateIssuer = false,
 
@@ -86,6 +108,79 @@ namespace HotelListing.Extensions
                 };
             });
 
+        }
+
+
+        public static void ConfigureExceptionHandler(this IApplicationBuilder builder)
+        {
+            builder.UseExceptionHandler(error =>
+            {
+                error.Run(async context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+                    context.Response.ContentType = "application/json";
+
+                    var contextFeature = context.Features.Get<IExceptionHandlerFeature>();
+
+                    if (contextFeature != null)
+                    {
+                        Log.Error($"An error accure during call {contextFeature.Error} method. Custom error register it.");
+
+                        await context.Response.WriteAsync(new CustomError
+                        {
+                            StatusCode = context.Response.StatusCode,
+                            Message = "Internal server error. Custom error register it. Please try again later"
+
+                        }.ToString());
+                    }
+                });
+            });
+        }
+
+
+        public static void ConfigureApiVersioning(this IServiceCollection services)
+        {
+            services.AddApiVersioning(opt =>
+            {
+                opt.ReportApiVersions = true;
+
+                opt.AssumeDefaultVersionWhenUnspecified = true;
+
+                opt.DefaultApiVersion = new ApiVersion(2,0);
+            });
+        }
+
+
+        public static void ConfigureRateLimit(this IServiceCollection services, IConfiguration configuration)
+        {
+            // needed to load configuration from appsettings.json
+            services.AddOptions();
+
+            // needed to store rate limit counters and ip rules
+            services.AddMemoryCache();
+
+            //load general configuration from appsettings.json
+            services.Configure<IpRateLimitOptions>(configuration.GetSection("IpRateLimiting"));
+
+            //load ip rules from appsettings.json
+            services.Configure<IpRateLimitPolicies>(configuration.GetSection("IpRateLimitPolicies"));
+
+            // inject counter and rules stores
+            services.AddInMemoryRateLimiting();
+            //services.AddDistributedRateLimiting<AsyncKeyLockProcessingStrategy>();
+            //services.AddDistributedRateLimiting<RedisProcessingStrategy>();
+            //services.AddRedisRateLimiting();
+
+            // Add framework services.
+            //services.AddMvc();
+
+            // configuration (resolvers, counter key builders)
+            services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+
+            // inject counter and rules distributed cache stores
+            services.AddSingleton<IIpPolicyStore, DistributedCacheIpPolicyStore>();
+            services.AddSingleton<IRateLimitCounterStore, DistributedCacheRateLimitCounterStore>();
         }
     }
 }

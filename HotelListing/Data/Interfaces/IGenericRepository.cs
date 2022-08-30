@@ -1,4 +1,6 @@
-﻿using System.Linq.Expressions;
+﻿using HotelListing.Models;
+using System.Linq.Expressions;
+using X.PagedList;
 
 namespace HotelListing.Data.Interfaces
 {
@@ -10,8 +12,12 @@ namespace HotelListing.Data.Interfaces
         void Remove(T entity);
         void RemoveRange(IEnumerable<T> entities);
         void Update(T entity);
-        Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>> expression = null,
-            Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null, List<string> includes = null);
+
+        Task<IPagedList<T>> GetAllWithPagingAsync(Expression<Func<T, bool>> expression = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null, 
+            List<string> includes = null, RequestPagingParams request=null);
+
         Task<T> GetAsync(Expression<Func<T, bool>> expression = null, List<string> includes = null);
+
     }
 }
